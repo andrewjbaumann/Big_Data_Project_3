@@ -17,24 +17,22 @@
  *              To compile: scalac *.scala
  *              To run:     scala SparkGrep <host> <input_file> <match_term>
  */
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext}
 
 object SparkGrep {
   def main(args: Array[String]) {
-    if (args.length < 3) {
-      System.err.println("Usage: SparkGrep <host> <input_file> <match_term>")
+    if (args.length < 2) {
+      System.err.println("Usage: SparkGrep <host> <input_file>")
       System.exit(1)
     }
 
     val conf = new SparkConf().setAppName("SparkGrep").setMaster(args(0))
     val sc = new SparkContext(conf)
     val inputFile = sc.textFile(args(1), 2).cache()
-    val matchTerm : String = args(2)
-    val numMatches = inputFile.filter(line => line.contains(matchTerm)).count()
-
-    println("%s lines in %s contain %s".format(numMatches, args(1), matchTerm))
+    val counts = inputFile.flatMap(line => line.split(" "))
+      .map(word => (word,1))
+      .reduceByKey(_ + _)
+    counts.saveAsTextFile("bin/output")
 
     System.exit(0)
   }
