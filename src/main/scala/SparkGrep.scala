@@ -59,6 +59,21 @@ object SparkGrep {
     min_string
   }
 
+  def isAllDigits(x: String): Boolean =
+  {
+    if(x == " ")
+      return false
+    else if (x == '\t')
+      return false
+    else if (x.size < 6)
+      return false
+    var y = x.take(x.size-2)
+    val tamp = y forall Character.isDigit
+
+    println(tamp, x)
+    tamp
+  }
+
   def main(args: Array[String]) {
     if (args.length < 2) {
       System.err.println("Usage: SparkGrep <host> <input_file>")
@@ -68,11 +83,11 @@ object SparkGrep {
 
     val conf = new SparkConf().setAppName("SparkGrep").setMaster(args(0))
     val sc = new SparkContext(conf)
-    val inputFile = sc.textFile(args(1), 2).cache()
-
+    val inputFile = sc.textFile(args(1)).cache()
+    /*(line.split("\t")(0), line.split("\t")(1).split(" "))*/
     val counts = inputFile.flatMap(line => line.split(" "))
-      .filter(word => word.contains("gene_"))
-      .distinct()
+      .filter(word => (word.contains("gene_") || isAllDigits(word)))
+      .flatMap(word => word)
     /*
     This code snippet is supposed to take the whole list of genes and compare them to every other gene in the list,
     but it's way too large and takes way too long. Spark doesn't let you call another RDD inside of an RDD
