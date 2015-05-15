@@ -84,10 +84,9 @@ object SparkGrep {
     val conf = new SparkConf().setAppName("SparkGrep").setMaster(args(0))
     val sc = new SparkContext(conf)
     val inputFile = sc.textFile(args(1)).cache()
-    /*(line.split("\t")(0), line.split("\t")(1).split(" "))*/
-    val counts = inputFile.flatMap(line => line.split(" "))
-      .filter(word => (word.contains("gene_") || isAllDigits(word)))
-      .flatMap(word => word)
+    val counts = inputFile.map(document => (document.split("\t")(0), (document.split("\t")(1)).split(" ").filter(it => it.contains("gene_"))))
+      .map(value => (value._1)(value._2.size))
+      
     /*
     This code snippet is supposed to take the whole list of genes and compare them to every other gene in the list,
     but it's way too large and takes way too long. Spark doesn't let you call another RDD inside of an RDD
@@ -101,7 +100,15 @@ object SparkGrep {
      */
 
     println("Spark code done")
-
+    
+    for(x<-counts) {
+      print(x._1 + ": ")
+      for(y<-x._2) {
+        print(y + ", ")
+      }
+      println()
+    }
+    
     counts.saveAsTextFile("bin/output")
     System.exit(0)
   }
