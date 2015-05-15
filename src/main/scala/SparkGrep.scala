@@ -25,6 +25,7 @@
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
+
 object SparkGrep {
   //dist is supposed to take 2 genes a return the edit distance
   //but i haven't decided how. whether to pass the rdd through
@@ -47,9 +48,9 @@ object SparkGrep {
     {
       val temp = s.map(value => (value._1, value._2, d))
       //val idf = temp.map(x => (x._2,x._2.map(y => x._2.filter(z => z == y).length.toDouble)))
-      val idf = temp.map(x => (x._2,x._2.map(y => y.map(z => x._2.contains(y)).length.toDouble)))
-      idf.foreach(x => println((x._1(1),x._2(1))))
-      idf.saveAsTextFile("bin/idf")
+      val idf = temp.map(x => (x._2,x._2.map(y => y)))
+        .map(x => (x._2,x._2.map(y => x._2.contains(y)).length.toDouble))
+      idf.foreach(x => println(x._1(0),x._2))
       temp
     }
     println("Starting")
