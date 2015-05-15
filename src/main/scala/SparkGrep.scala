@@ -40,14 +40,16 @@ object SparkGrep {
       val temp = s.map(value => (value._1, value._2.length))
       val tfi = s.map(f => (f._1, f._2, f._2.length, f._2.map(word => (word, f._2.filter(gene => gene == word).length.toDouble / f._2.length.toDouble))))
       tfi.foreach(x => println(x._4.foreach(y => println(y._1, y._2))))
-      tfi.saveAsTextFile("bin/tfioutput")
+      tfi.saveAsTextFile("bin/tfi")
       tfi
     }
     def runIDF(s:RDD[(String,Array[String])], d:Int): RDD[(String,Array[String],Int)] =
     {
       val temp = s.map(value => (value._1, value._2, d))
-      temp.foreach(x => println(x._1, x._3))
-
+      //val idf = temp.map(x => (x._2,x._2.map(y => x._2.filter(z => z == y).length.toDouble)))
+      val idf = temp.map(x => (x._2,x._2.map(y => y.map(z => x._2.contains(y)).length.toDouble)))
+      idf.foreach(x => println((x._1(1),x._2(1))))
+      idf.saveAsTextFile("bin/idf")
       temp
     }
     println("Starting")
