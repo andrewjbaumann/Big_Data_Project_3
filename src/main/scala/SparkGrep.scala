@@ -22,6 +22,7 @@
  * https://spark.apache.org/docs/latest/programming-guide.html
  */
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
 object SparkGrep {
@@ -34,21 +35,35 @@ object SparkGrep {
       System.err.println("Usage: SparkGrep <host> <input_file>")
       System.exit(1)
     }
-    println("Starting")
+    def runTFI(s:RDD[(String,Array[String])]): RDD[(String,Array[String],Int,Array[(String,Double)])] =
+    {
+      val temp = s.map(value => (value._1, value._2.length))
+      val tfi = s.map(f => (f._1, f._2, f._2.length, f._2.map(word => (word, f._2.filter(gene => gene == word).length.toDouble / f._2.length.toDouble))))
+      tfi.foreach(x => println(x._4.foreach(y => println(y._1, y._2))))
+      tfi.saveAsTextFile("bin/tfioutput")
+      tfi
+    }
+    def runIDF(s:RDD[(String,Array[String])], d:Int): RDD[(String,Array[String],Int)] =
+    {
+      val temp = s.map(value => (value._1, value._2, d))
+      temp.foreach(x => println(x._1, x._3))
 
+      temp
+    }
+    println("Starting")
     val conf = new SparkConf().setAppName("SparkGrep").setMaster(args(0))
     val sc = new SparkContext(conf)
+    val documents = scala.io.Source.fromFile(args(1)).getLines.size
     val inputFile = sc.textFile(args(1)).cache()
     val counts = inputFile.map(document => (document.split("\t")(0), document.split("\t")(1).split(" ").filter(it => it.contains("gene_"))))
-    val pairs = counts.map(value => (value._1,value._2.length))
-    val tfi = counts.map(value => (value._1,value._2.foreach(gene => ))
-
-    tfi.foreach(value => println(value._1, value._2))
-    pairs.foreach(value => println(value._1, value._2))
+    //val tfi = runTFI(counts)
+    val idf = runIDF(counts, documents)
 
 
     println("Spark code done")
-    pairs.saveAsTextFile("bin/output")
+
+    //counts.saveAsTextFile("bin/countsoutput")
+    //pairs.saveAsTextFile("bin/pairsoutput")
 
     System.exit(0)
   }
