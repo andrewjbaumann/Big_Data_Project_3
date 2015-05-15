@@ -36,32 +36,51 @@ object SparkGrep {
       System.err.println("Usage: SparkGrep <host> <input_file>")
       System.exit(1)
     }
-    def runTFI(s:RDD[(String,Array[String])]): RDD[(String,Array[String],Int,Array[(String,Double)])] =
+    def runTF(s:RDD[(String,Array[String])]): RDD[(String,Double)] =
     {
       val temp = s.map(value => (value._1, value._2.length))
-      val tfi = s.map(f => (f._1, f._2, f._2.length, f._2.map(word => (word, f._2.filter(gene => gene == word).length.toDouble / f._2.length.toDouble))))
-      tfi.foreach(x => println(x._4.foreach(y => println(y._1, y._2))))
-      tfi.saveAsTextFile("bin/tfi")
+      val tfi = s.map(f => f._2.map(word => (word, f._2.filter(gene => gene == word).length.toDouble / f._2.length.toDouble)))
+        .flatMap(x => x)
+        .map(x => (x._1,x._2))
+        .sortByKey()
+      tfi.saveAsTextFile("bin/tf")
       tfi
     }
-    def runIDF(s:RDD[(String,Array[String])], d:Int): RDD[(String,Array[String],Int)] =
+    def runIDF(s:RDD[(String,Array[String])], d:Double): RDD[(String,Double)] =
     {
-      val temp = s.map(value => (value._1, value._2, d))
-      //val idf = temp.map(x => (x._2,x._2.map(y => x._2.filter(z => z == y).length.toDouble)))
-      val idf = temp.map(x => (x._2,x._2.map(y => y)))
-        .map(x => (x._2,x._2.map(y => x._2.contains(y)).length.toDouble))
-      idf.foreach(x => println(x._1(0),x._2))
-      temp
+      def CountGenesIDF(g:String, s:(Array[String])): Int = {
+        if(s.contains(g))
+          return 1
+        else
+          return 0
+      }
+      val temp = s.map(value => (value._1, value._2.distinct, d))
+      val idf = s.map(f => f._2.map(gene => (gene,CountGenesIDF(gene, f._2))).distinct)
+        .flatMap(x => x)
+        .map(x => (x._1, 1))
+        .reduceByKey(_ + _)
+        .map(x => (x._1, math.log(d/(x._2.toDouble))))
+        .sortByKey()
+      idf.saveAsTextFile("bin/idf")
+      idf
     }
+    def runTFIDF(t:RDD[(String,Double)], i:RDD[(String,Double)]): RDD[(String, Double)] =
+    {
+      val tfidf = t.join(i)
+        .map(x => (x._1, x._2._1*x._2._2))
+      tfidf.foreach(x => println(x._1, x._2))
+      tfidf
+    }
+
     println("Starting")
     val conf = new SparkConf().setAppName("SparkGrep").setMaster(args(0))
     val sc = new SparkContext(conf)
-    val documents = scala.io.Source.fromFile(args(1)).getLines.size
+    val documents = scala.io.Source.fromFile(args(1)).getLines.size.toDouble
     val inputFile = sc.textFile(args(1)).cache()
     val counts = inputFile.map(document => (document.split("\t")(0), document.split("\t")(1).split(" ").filter(it => it.contains("gene_"))))
-    //val tfi = runTFI(counts)
+    val tf = runTF(counts)
     val idf = runIDF(counts, documents)
-
+    val tfidf = runTFIDF(tf, idf)
 
     println("Spark code done")
 
