@@ -88,23 +88,32 @@ object DocumentMetrics {
     tfidf.saveAsTextFile("bin/tfidf")
     return tfidf
   }
-  /*
-  def multiplyTFIs(s:List[Double], d:List[Double]):List[Double] = {
-    var x = s
-    for (it <- x) {
 
+  def multiplyTFIs(s:Array[Double], d:Array[Double]):Array[Double] = {
+    if (s.length > d.length)
+    {
+      val x = s
+      for (y <- 0 to d.length - 1)
+        x(y) = s(y) * d(y)
+      x
+    }
+    else
+    {
+      val x = d
+      for (y <- 0 to s.length - 1)
+        x(y) = s(y) * d(y)
+      x
     }
   }
 
   def runSemanticSimilarity(t:RDD[(String, Iterable[Double])]):Unit = {
     val temp = t.map(x => (x._1, x._2.toList.distinct))
-      .map(x => (x._1, x._2, x._2.map(y => y * y)))
+      .map(x => (x._1, x._2.toArray, x._2.map(y => y * y)))
       .map(x => (x._1, x._2, x._3.sum))
       .map(x => (x._1, x._2, math.sqrt(x._3)))
     val semantics = temp.cartesian(temp)
-    semantics.map(x => (x._1._1, x._2._1, (multiplyTFIs(x._1._2, x._2._2).sum / (x._1._3 * x._2._3))))
+    semantics.map(x => (x._1._1, x._2._1, multiplyTFIs(x._1._2, x._2._2).sum / (x._1._3 * x._2._3)))
       .sortBy(x => x._3)
       .foreach(x => println(x._1, x._2, x._3))
   }
-  */
 }
