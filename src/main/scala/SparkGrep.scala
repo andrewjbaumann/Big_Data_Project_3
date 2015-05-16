@@ -43,7 +43,7 @@ object SparkGrep {
         .flatMap(x => x)
         .map(x => (x._1,x._2))
         .sortByKey()
-      tfi.saveAsTextFile("bin/tf")
+      //tfi.saveAsTextFile("bin/tf")
       tfi
     }
     def runIDF(s:RDD[(String,Array[String])], d:Double): RDD[(String,Double)] =
@@ -61,15 +61,33 @@ object SparkGrep {
         .reduceByKey(_ + _)
         .map(x => (x._1, math.log(d/(x._2.toDouble))))
         .sortByKey()
-      idf.saveAsTextFile("bin/idf")
+      //idf.saveAsTextFile("bin/idf")
       idf
     }
-    def runTFIDF(t:RDD[(String,Double)], i:RDD[(String,Double)]): RDD[(String, Double)] =
+    def runTFIDF(t:RDD[(String,Double)], i:RDD[(String,Double)]): RDD[(String, Iterable[Double])] =
     {
       val tfidf = t.join(i)
         .map(x => (x._1, x._2._1*x._2._2))
-      tfidf.foreach(x => println(x._1, x._2))
+        .groupByKey()
+      //tfidf.saveAsTextFile("bin/tfidf")
       tfidf
+    }
+    def runCombineTFIDF(t:RDD[(String,Iterable[Double])]): Unit ={
+      def multiplyTFIs(s:List[Double], d:List[Double]): List[Double] = {
+        var x = s
+        for (x in 0 to s.length-1)
+        {
+
+        }
+      }
+      val temp = t.map(x => (x._1, x._2.toList.distinct))
+        .map(x => (x._1, x._2, x._2.map(y => y*y)))
+        .map(x => (x._1, x._2, x._3.sum))
+        .map(x => (x._1, x._2, math.sqrt(x._3)))
+      val semantics = temp.cartesian(temp)
+      semantics.map(x => (x._1._1, x._2._1, (multiplyTFIs(x._1._2, x._2._2).sum/(x._1._3*x._2._3))))
+        .sortBy(x => x._3)
+        .foreach(x => println(x._1, x._2, x._3))
     }
 
     println("Starting")
@@ -81,6 +99,7 @@ object SparkGrep {
     val tf = runTF(counts)
     val idf = runIDF(counts, documents)
     val tfidf = runTFIDF(tf, idf)
+    runCombineTFIDF(tfidf)
 
     println("Spark code done")
 
