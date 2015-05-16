@@ -39,10 +39,8 @@ object DocumentMetrics {
     val counts = inputFile.map(document => (document.split("\t")(0), document.split("\t")(1).split(" ").filter(it => it.contains("gene_"))))
     val tf = runTF(counts)
     val idf = runIDF(counts, documentSize)
-    //val tfidf = runCombineTFIDF(tf, idf)
-    //runSemanticSimilarity(tfidf)
-
-    println("Spark code done")
+    val tfidf = runCombineTFIDF(tf, idf)
+    runSemanticSimilarity(tfidf)
 
     //counts.saveAsTextFile("bin/countsoutput")
     //pairs.saveAsTextFile("bin/pairsoutput")
@@ -58,7 +56,7 @@ object DocumentMetrics {
       .flatMap(x => x)
       .map(x => (x._1, x._2))
       .sortByKey()
-    tfi.saveAsTextFile("bin/tf")
+    //tfi.saveAsTextFile("bin/tf")
     return tfi
   }
 
@@ -77,7 +75,7 @@ object DocumentMetrics {
       .reduceByKey(_ + _)
       .map(x => (x._1, math.log(d / (x._2.toDouble))))
       .sortByKey()
-    idf.saveAsTextFile("bin/idf")
+    //idf.saveAsTextFile("bin/idf")
     return idf
   }
 
@@ -85,7 +83,7 @@ object DocumentMetrics {
     val tfidf = t.join(i)
       .map(x => (x._1, x._2._1 * x._2._2))
       .groupByKey()
-    tfidf.saveAsTextFile("bin/tfidf")
+    //tfidf.saveAsTextFile("bin/tfidf")
     return tfidf
   }
 
@@ -113,7 +111,9 @@ object DocumentMetrics {
       .map(x => (x._1, x._2, math.sqrt(x._3)))
     val semantics = temp.cartesian(temp)
     semantics.map(x => (x._1._1, x._2._1, multiplyTFIs(x._1._2, x._2._2).sum / (x._1._3 * x._2._3)))
-      .sortBy(x => x._3)
-      .foreach(x => println(x._1, x._2, x._3))
+      .map(x => (x._1.concat(" " + x._2), x._3))
+      .sortBy(x => x._2)
+
+      .foreach(println)
   }
 }

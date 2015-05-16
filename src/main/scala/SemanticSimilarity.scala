@@ -21,7 +21,7 @@
  *                  https://spark.apache.org/docs/latest/programming-guide.html
  */
 
-object SparkApp {
+object SemanticSimilarity {
   def main(args: Array[String]) {
     if (args.length < 2) {
       System.err.println("Usage: SparkGrep <host> <input_file>")
