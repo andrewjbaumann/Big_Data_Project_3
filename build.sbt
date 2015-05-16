@@ -7,3 +7,5 @@ scalaVersion := "2.11.6"
 fork := true
 
 libraryDependencies ++= Seq("org.apache.spark" %% "spark-core" % "1.3.1")
+
+libraryDependencies += "org.scala-lang" % "scala-actors" % "2.11.6"
