@@ -56,7 +56,7 @@ object DocumentMetrics {
       .flatMap(x => x)
       .map(x => (x._1, x._2))
       .sortByKey()
-    //tfi.saveAsTextFile("bin/tf")
+    tfi.saveAsTextFile("bin/tfi")
     return tfi
   }
 
@@ -75,7 +75,8 @@ object DocumentMetrics {
       .reduceByKey(_ + _)
       .map(x => (x._1, math.log(d / (x._2.toDouble))))
       .sortByKey()
-    //idf.saveAsTextFile("bin/idf")
+      .filter(x => x._2 != 0)
+    idf.saveAsTextFile("bin/idf")
     return idf
   }
 
@@ -83,25 +84,26 @@ object DocumentMetrics {
     val tfidf = t.join(i)
       .map(x => (x._1, x._2._1 * x._2._2))
       .groupByKey()
-    //tfidf.saveAsTextFile("bin/tfidf")
+    tfidf.saveAsTextFile("bin/tfidf")
     return tfidf
   }
 
   def multiplyTFIs(s:Array[Double], d:Array[Double]):Array[Double] = {
     if (s.length > d.length)
     {
-      val x = s
+      val x = s.clone()
       for (y <- 0 to d.length - 1)
         x(y) = s(y) * d(y)
       x
     }
     else
     {
-      val x = d
+      val x = d.clone()
       for (y <- 0 to s.length - 1)
         x(y) = s(y) * d(y)
       x
     }
+
   }
 
   def runSemanticSimilarity(t:RDD[(String, Iterable[Double])]):Unit = {
@@ -110,10 +112,7 @@ object DocumentMetrics {
       .map(x => (x._1, x._2, x._3.sum))
       .map(x => (x._1, x._2, math.sqrt(x._3)))
     val semantics = temp.cartesian(temp)
-    semantics.map(x => (x._1._1, x._2._1, multiplyTFIs(x._1._2, x._2._2).sum / (x._1._3 * x._2._3)))
-      .map(x => (x._1.concat(" " + x._2), x._3))
-      .sortBy(x => x._2)
-
+      .map(x => (x._1._1.concat(" " + x._2._1),(multiplyTFIs(x._1._2, x._2._2).sum)/(x._1._3 * x._2._3)))
       .foreach(println)
-  }
-}
+  }git
+}g
