@@ -114,5 +114,5 @@ object DocumentMetrics {
     val semantics = temp.cartesian(temp)
       .map(x => (x._1._1.concat(" " + x._2._1),(multiplyTFIs(x._1._2, x._2._2).sum)/(x._1._3 * x._2._3)))
       .foreach(println)
-  }git
-}g
+  }
+}
