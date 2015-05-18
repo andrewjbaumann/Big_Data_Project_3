@@ -40,79 +40,112 @@ object DocumentMetrics {
     val tf = runTF(counts)
     val idf = runIDF(counts, documentSize)
     val tfidf = runCombineTFIDF(tf, idf)
-    runSemanticSimilarity(tfidf)
+    //runSemanticSimilarity(tfidf)
+    runFasterSemantic(tfidf)
 
-    //counts.saveAsTextFile("bin/countsoutput")
-    //pairs.saveAsTextFile("bin/pairsoutput")
   }
 
-  def setDocumentSize(x:String):Unit = {
+  //gets the number of documents in the file
+  def setDocumentSize(x:String): Unit =
+  {
     documentSize = scala.io.Source.fromFile(x).getLines.size.toDouble
   }
-
-  def runTF(s:RDD[(String, Array[String])]):RDD[(String, Double)] = {
+  /*
+    gets the number term frequency for every gene in every document
+    creates an embedded map
+  */
+  def runTF(s:RDD[(String, Array[String])]):RDD[(String, String, Double)] = {
     val temp = s.map(value => (value._1, value._2.length))
-    val tfi = s.map(f => f._2.map(word => (word, f._2.filter(gene => gene == word).length.toDouble / f._2.length.toDouble)))
+    val tfi = s.map(f => f._2.map(word => (f._1, word, f._2.filter(gene => gene == word).length.toDouble / f._2.length.toDouble)))
       .flatMap(x => x)
-      .map(x => (x._1, x._2))
-      .sortByKey()
-    tfi.saveAsTextFile("bin/tfi")
+      .map(x => (x._1, x._2, x._3))
     return tfi
-  }
-
-  def CountGenesIDF(g:String, s:(Array[String])):Int = {
-    if (s.contains(g))
-      return 1
-    else
-      return 0
   }
 
   def runIDF(s:RDD[(String, Array[String])], d:Double):RDD[(String, Double)] = {
     val temp = s.map(value => (value._1, value._2.distinct, d))
-    val idf = s.map(f => f._2.map(gene => (gene, CountGenesIDF(gene, f._2))).distinct)
+    val idf = s.map(f => f._2.map(gene => (gene, 1)))
       .flatMap(x => x)
-      .map(x => (x._1, 1))
       .reduceByKey(_ + _)
       .map(x => (x._1, math.log(d / (x._2.toDouble))))
       .sortByKey()
-      .filter(x => x._2 != 0)
-    idf.saveAsTextFile("bin/idf")
     return idf
   }
 
-  def runCombineTFIDF(t:RDD[(String, Double)], i:RDD[(String, Double)]):RDD[(String, Iterable[Double])] = {
-    val tfidf = t.join(i)
-      .map(x => (x._1, x._2._1 * x._2._2))
+  def runCombineTFIDF(t:RDD[(String, String, Double)], i:RDD[(String, Double)]):RDD[(String, Iterable[(String, Double)])] = {
+    val idf = i.collect().clone()
+    val tfidf = t.map(x => (x._1, x._2, idf.filter(y => (x._2 == y._1)).clone(), x._3))
+      .map(x=> (x._1, x._2, x._3(0)._2*x._4))
+      .map(x => (x._2, (x._1, x._3.toDouble)))
       .groupByKey()
-    tfidf.saveAsTextFile("bin/tfidf")
+      .map(x => (x._1, x._2.filter(y => y._2!=0)))
+      .filter(x => x._2.size != 0 )
+    //tfidf.saveAsTextFile("bin/dicks")
     return tfidf
   }
 
-  def multiplyTFIs(s:Array[Double], d:Array[Double]):Array[Double] = {
+  def multiplyTFIs(s:Array[(String,Double)], d:Array[(String, Double)]): Double = {
     if (s.length > d.length)
     {
-      val x = s.clone()
-      for (y <- 0 to d.length - 1)
-        x(y) = s(y) * d(y)
-      x
+      val x = s.distinct.clone().map(x => (x._1, x._2, d.distinct.filter(y => y._1 == x._1).clone()))
+        .filter(x => x._3.length != 0)
+        .map(x => (x._1, x._2*x._3(0)._2))
+        .map(x => x._2)
+        .sum
+
+      return x
     }
     else
     {
-      val x = d.clone()
-      for (y <- 0 to s.length - 1)
-        x(y) = s(y) * d(y)
-      x
-    }
+      val x = d.distinct.clone().map(x => (x._1, x._2, s.distinct.filter(y => y._1 == x._1).clone()))
+        .filter(x => x._3.length != 0)
+        .map(x => (x._1, x._2*x._3(0)._2))
+        .map(x => x._2)
+        .sum
+      return x
 
+    }
   }
 
-  def runSemanticSimilarity(t:RDD[(String, Iterable[Double])]):Unit = {
-    val temp = t.map(x => (x._1, x._2.toList.distinct))
-      .map(x => (x._1, x._2.toArray, x._2.map(y => y * y)))
-      .map(x => (x._1, x._2, x._3.sum))
-      .map(x => (x._1, x._2, math.sqrt(x._3)))
+  def computeBrackets(s:Array[(String, Double)]): Double =
+  {
+    var sum = 0.toDouble
+    for(x <- 0 to s.length -1 )
+    {
+      sum = sum + (s(x)._2 * s(x)._2)
+    }
+    return math.sqrt(sum)
+  }
+
+  def fixRounding(r:Double): Double=
+  {
+    if(1 < r && r < 2)
+      return 1.toDouble
+    else
+      return r
+  }
+
+  def runSemanticSimilarity(t:RDD[(String, Iterable[(String, Double)])]):Unit = {
+    val temp = t.map(x => (x._1, x._2.toList, x._2))
     val semantics = temp.cartesian(temp)
-      .map(x => (x._1._1.concat(" " + x._2._1),(multiplyTFIs(x._1._2, x._2._2).sum)/(x._1._3 * x._2._3)))
-      .foreach(println)
+      .map(x => (x._1._1, x._2._1, multiplyTFIs(x._1._2.toArray, x._2._2.toArray), computeBrackets(x._1._3.toArray)*computeBrackets(x._2._3.toArray)))
+      .map(x => (x._1, x._2, (x._3/x._4)))
+      .filter(x => (x._1 != x._2))
+      .map(x => (x._1.concat(", " + x._2), x._3))
+      .filter(x => x._2!=0)
+      .sortBy(x => x._2)
+
+    semantics.foreach(println)
+  }
+
+  def runFasterSemantic(t:RDD[(String, Iterable[(String, Double)])]):Unit = {
+    val temp = t.map(x => x._2.map(y => (x._1, y._1, y._2)))
+      .flatMap(x => x)
+      .map(x => (x._1, (x._1, x._2, x._3)))
+      .groupByKey()
+    val semantics = temp.cartesian(temp)
+      .map(x=> ((x._1._1.concat(""), x._1._2), (x._2._1.concat(""), x._2._2)))
+
+    semantics.saveAsTextFile("bin/save")
   }
 }
