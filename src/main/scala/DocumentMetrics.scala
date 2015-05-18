@@ -79,7 +79,7 @@ object DocumentMetrics {
       .groupByKey()
       .map(x => (x._1, x._2.filter(y => y._2 != 0)))
       .filter(x => x._2.size != 0)
-    //tfidf.saveAsTextFile("bin/dicks")
+    //tfidf.saveAsTextFile("bin/tfidf")
     return tfidf
   }
 
