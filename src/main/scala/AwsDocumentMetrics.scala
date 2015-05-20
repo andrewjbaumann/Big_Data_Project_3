@@ -1,5 +1,5 @@
 /**
- * Title:           SparkGrep.scala
+ * Title:           AwsDocumentMetrics.scala
  * Authors:         Andrew Baumann, Tony Zheng
  * Created on:      4/24/2015
  * Modified on:     5/19/2015
@@ -23,37 +23,22 @@
  */
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkContext, SparkConf}
 
-object DocumentMetrics {
-
+object AwsDocumentMetrics {
   private var documentSize = 0.0
 
-  def startConfig(host:String, input_file:String):Unit = {
+  def startConfig(host: String, input_file: String): Unit = {
     println("Starting")
 
-    val conf = new SparkConf().setAppName("SparkGrep").setMaster(host)
-    val sc = new SparkContext(conf)
-
-    val documents = setDocumentSize(input_file)
-    val inputFile = sc.textFile(input_file).cache()
+    val inputFile = sc.textFile(input_file)
+    val documents = inputFile.count()
     val counts = inputFile.map(document => (document.split("\t")(0), document.split("\t")(1).split(" ").filter(it => it.contains("gene_"))))
     val tf = runTF(counts)
-    val idf = runIDF(counts, documentSize)
+    val idf = runIDF(counts, documents)
     val tfidf = runCombineTFIDF(tf, idf)
-
     runSemanticSimilarity(tfidf)
   }
 
-  //gets the number of documents in the file
-  def setDocumentSize(x: String): Unit = {
-    documentSize = scala.io.Source.fromFile(x).getLines.size.toDouble
-  }
-
-  /*
-    gets the number term frequency for every gene in every document
-    creates an embedded map
-  */
   def runTF(s:RDD[(String, Array[String])]):RDD[(String, String, Double)] = {
     val temp = s.map(value => (value._1, value._2.length))
     val tfi = s.map(f => f._2.map(word => (f._1, word, f._2.filter(gene => gene == word).length.toDouble / f._2.length.toDouble)))
@@ -83,7 +68,8 @@ object DocumentMetrics {
       .map(x => (x._1, x._2.filter(y => y._2 != 0)))
       .filter(x => x._2.size != 0)
 
-    //tfidf.saveAsTextFile("bin/tfidf")
+    tfidf.saveAsTextFile("bin/tfidf")
+
     return tfidf
   }
 
@@ -127,6 +113,6 @@ object DocumentMetrics {
       .filter(x => x._2 != 0)
       .sortBy(x => x._2)
 
-    semantics.foreach(println)
+    semantics.collect.foreach(println)
   }
 }
